@@ -46,6 +46,7 @@
 mod db;
 mod model;
 mod query;
+mod util;
 
 #[cfg(test)]
 mod tests;
