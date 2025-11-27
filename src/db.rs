@@ -217,32 +217,7 @@ impl Database {
 
     /// Helper to convert a Row to a Model instance
     fn row_to_model<T: Model>(&self, row: &Row, fields: &[&str]) -> SqliteResult<T> {
-        let mut json_map = serde_json::Map::new();
-        
-        for (idx, field) in fields.iter().enumerate() {
-            // Try to get the value as different types
-            let value: serde_json::Value = if let Ok(v) = row.get::<_, i64>(idx) {
-                serde_json::Value::Number(v.into())
-            } else if let Ok(v) = row.get::<_, String>(idx) {
-                serde_json::Value::String(v)
-            } else if let Ok(v) = row.get::<_, f64>(idx) {
-                serde_json::Value::Number(
-                    serde_json::Number::from_f64(v).unwrap_or_else(|| 0.into())
-                )
-            } else {
-                serde_json::Value::Null
-            };
-            
-            json_map.insert(field.to_string(), value);
-        }
-        
-        let json_value = serde_json::Value::Object(json_map);
-        serde_json::from_value(json_value)
-            .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-                0,
-                rusqlite::types::Type::Text,
-                Box::new(e)
-            ))
+        crate::util::row_to_model(row, fields)
     }
 
     /// Drop a table (useful for testing)

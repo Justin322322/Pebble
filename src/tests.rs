@@ -353,3 +353,46 @@ fn test_drop_table() {
     assert_eq!(users.len(), 0);
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+struct TypeMismatchModel {
+    id: i32,
+    integer_field: i32,
+    string_field: String,
+}
+
+impl Model for TypeMismatchModel {
+    fn table_name() -> &'static str {
+        "type_mismatch"
+    }
+
+    fn fields() -> &'static [&'static str] {
+        &["id", "integer_field", "string_field"]
+    }
+}
+
+#[test]
+fn test_loose_type_conversion() {
+    let db = Database::connect_in_memory().unwrap();
+
+    // Create table manually to force TEXT type for integer field
+    // Note: create_table<T> already does this (everything is TEXT except PK),
+    // but we want to be explicit about what we are testing.
+    db.conn.execute(
+        "CREATE TABLE type_mismatch (id INTEGER PRIMARY KEY, integer_field TEXT, string_field TEXT)",
+        [],
+    ).unwrap();
+
+    // Insert data directly as strings to simulate what happens in the DB
+    db.conn.execute(
+        "INSERT INTO type_mismatch (id, integer_field, string_field) VALUES (1, '42', 'hello')",
+        [],
+    ).unwrap();
+
+    // Fetch using our ORM which should handle the conversion
+    let results = db.select_all::<TypeMismatchModel>().unwrap();
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].id, 1);
+    assert_eq!(results[0].integer_field, 42); // This would fail without the fix
+    assert_eq!(results[0].string_field, "hello");
+}
